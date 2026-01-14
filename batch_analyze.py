@@ -7,6 +7,7 @@ This script processes multiple slide images and saves the results.
 import os
 import sys
 import json
+import time
 from pathlib import Path
 from dotenv import load_dotenv
 from google import genai
@@ -60,7 +61,7 @@ def analyze_image(client, image_path, prompt="What is in this image? Describe it
 
         # Generate response
         response = client.models.generate_content(
-            model='gemini-2.5-flash-lite',
+            model='gemini-2.5-flash',
             contents=[prompt, img]
         )
 
@@ -165,11 +166,15 @@ Return ONLY valid JSON in this exact format:
 
     # For testing: set to True to process only first image
     # For full processing: set to False to process all images
-    TEST_MODE = True
+    TEST_MODE = False
+
+    # Rate limiting: 5 images per minute = 12 seconds between images
+    RATE_LIMIT_DELAY = 12  # seconds
 
     print("=" * 60)
     print("Batch Image Analysis with Google Gemini")
     print("=" * 60)
+    print(f"Rate limit: 5 images per minute ({RATE_LIMIT_DELAY}s delay between images)")
 
     # Get all image files
     try:
@@ -287,6 +292,12 @@ Return ONLY valid JSON in this exact format:
             print(f"  ✗ Error: {e}")
 
         results["images"].append(image_result)
+
+        # Rate limiting: wait between images (except after the last one)
+        if idx < len(image_files):
+            print(f"  ⏳ Waiting {RATE_LIMIT_DELAY}s before next image (rate limit: 5 images/min)...")
+            time.sleep(RATE_LIMIT_DELAY)
+
         print()
 
     # Save results
